@@ -1,0 +1,10 @@
+{
+    "table1" : {
+        "url" : "localhost:8080/api/v1/",
+        "uri" : "table1/" 
+    },
+    "table2" : {
+        "url" : "localhost:8080/api/v1/",
+        "uri" : "table2/"
+    }
+}
