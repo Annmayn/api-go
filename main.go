@@ -1,43 +1,32 @@
 package main
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
-
-//Database : custom database
-var Database = map[string]map[string]string{
-	"table1": {
-		"url":     "localhost:8080/api/v1/table1",
-		"uri":     "/",
-		"methods": "POST,GET",
-	},
-	"table2": {
-		"url":     "localhost:8080/api/v1/table2",
-		"uri":     "/",
-		"methods": "GET",
-	},
-}
 
 //**************
 //todo:
 //Combine tables and add a field "Table string" that determines which table to send to
 //***************
 
-//Table1 : First table structure
-type Table1 struct {
-	Username string `json:username`
-	Password string `json:password`
-	// database string
-}
+// //Table1 : First table structure
+// type Table1 struct {
+// 	Username string `json:username`
+// 	Password string `json:password`
+// 	// database string
+// }
 
-//Table2 : Second Table structure
-type Table2 struct {
-	Username string `json:username`
-	ID       int    `json:id`
-}
+// //Table2 : Second Table structure
+// type Table2 struct {
+// 	Username string `json:username`
+// 	ID       int    `json:id`
+// }
 
 //*********useless********
 // var m = map[string]*struct{}{"table1": Table1, "table2": &Table2{}}
@@ -57,14 +46,24 @@ var router *gin.Engine
 //check if methods are allowed
 //todo: single code to handle all instead of same code for different methods using map
 func customHandler(c *gin.Context) {
+	var database map[string]interface{}
+	jsonFile, _ := os.Open("database.json")
+	defer jsonFile.Close()
+
+	byteFile, _ := ioutil.ReadAll(jsonFile)
+	json.Unmarshal([]byte(byteFile), &database)
+
 	switch c.Request.Method {
 	case "GET":
 		//split by "/"
-		url := strings.Split(c.Request.URL.Path, "/")
+		url := strings.Split(c.Request.URL.Path, "/")[1:] //ignore the first whitespace as it starts with "/"
 		//table name is the 3rd folder (index 3 because url starts with "/") in request : api/v1/[table_name]
-		databaseName := url[3]
+		databaseName := url[2]
 		//get all the methods allowed in the 'databaseName' database
-		methods := strings.Split(Database[databaseName]["methods"], ",")
+		db := database[databaseName].(map[string]interface{})
+		methodString := db["methods"].(string)
+		methods := strings.Split(methodString, ",")
+
 		//assume method is not allowed
 		exists := false
 		for _, method := range methods {
@@ -77,14 +76,16 @@ func customHandler(c *gin.Context) {
 		if exists == false { //if GET call not allowed
 			notAllowed(c, "GET")
 		} else { //GET call allowed
-			handleGet(c)
+			handleGet(c, databaseName)
 		}
 
 	case "POST":
-		url := strings.Split(c.Request.URL.Path, "/")
+		url := strings.Split(c.Request.URL.Path, "/")[1:]
 		//table name is the 3rd folder (index 2) in request : api/v1/[table_name]
-		tableName := url[3]
-		methods := strings.Split(Database[tableName]["methods"], ",")
+		databaseName := url[2]
+		db := database[databaseName].(map[string]interface{})
+		methodString := db["methods"].(string)
+		methods := strings.Split(methodString, ",")
 		exists := false
 		for _, method := range methods {
 			if method == "POST" {
@@ -95,6 +96,7 @@ func customHandler(c *gin.Context) {
 		if exists == false {
 			notAllowed(c, "POST")
 		} else {
+			//todo: add databaseName (string) as argument
 			handleVerification(c)
 		}
 
@@ -111,19 +113,31 @@ func handleVerification(c *gin.Context) {
 		c.Header("Content-Type", "application/json")
 		c.Status(http.StatusOK)
 	} else if c.Request.Method == "POST" {
-		var u Table1
-		c.BindJSON(&u)
+		// c.BindJSON(&u)
+
+		// loc, _ := c.GetQuery("user")
+
 		c.JSON(http.StatusOK, gin.H{
-			"user": u.Username,
-			"pass": u.Password,
+			"user": c.Param("user"),
+			"pass": "b",
 		})
 	}
 }
 
-func handleGet(c *gin.Context) {
-	message, _ := c.GetQuery("m")
+func handleGet(c *gin.Context, databaseName string) {
+	//todo: run get dynamically for every get request by iterating one level at a time
+	message, _ := c.GetQuery("user")
+
+	//read values from table1.json
+	var database map[string]interface{}
+	jsonFile, _ := os.Open("database.json")
+	defer jsonFile.Close()
+
+	byteFile, _ := ioutil.ReadAll(jsonFile)
+	json.Unmarshal([]byte(byteFile), &database)
+
 	c.String(http.StatusOK, c.Request.URL.Path)
-	c.String(http.StatusOK, "Get works!!! "+message)
+	c.String(http.StatusOK, "Get works!!! "+message+databaseName)
 }
 
 func notAllowed(c *gin.Context, method string) {
@@ -135,6 +149,7 @@ func notAllowed(c *gin.Context, method string) {
 }
 
 func initializeRoutes(r *gin.RouterGroup) {
+	//r = localhost:[port number]/api/v1
 	r.POST("/*any", customHandler)
 	r.OPTIONS("/*any", customHandler)
 	r.GET("/*any", customHandler)
