@@ -21,6 +21,11 @@ var Database = map[string]map[string]string{
 	},
 }
 
+//**************
+//todo:
+//Combine tables and add a field "Table string" that determines which table to send to
+//***************
+
 //Table1 : First table structure
 type Table1 struct {
 	Username string `json:username`
@@ -34,6 +39,10 @@ type Table2 struct {
 	ID       int    `json:id`
 }
 
+//*********useless********
+// var m = map[string]*struct{}{"table1": Table1, "table2": &Table2{}}
+//*****************
+
 // //Table : interface
 // type Table interface{
 // 	getDatabase() string
@@ -46,7 +55,7 @@ type Table2 struct {
 var router *gin.Engine
 
 //check if methods are allowed
-//todo: single code to handle all instead of same code for different methods
+//todo: single code to handle all instead of same code for different methods using map
 func customHandler(c *gin.Context) {
 	switch c.Request.Method {
 	case "GET":
