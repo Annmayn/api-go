@@ -1,18 +1,15 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
 )
 
-type Book struct {
-	Id      int
-	Title   string
-	Price   float32
-	Authors []string
-}
+// type Book struct {
+// 	Id      int
+// 	Title   string
+// 	Price   float32
+// 	Authors []string
+// }
 
 // type Tablex struct {
 // 	Url interface{} `json:table1`
@@ -22,21 +19,23 @@ type Book struct {
 //------> c.Request.URL.Path -> request url
 
 func main() {
-	jsonFile, _ := os.Open("product.json")
-	defer jsonFile.Close()
-	// fmt.Println(jsonFile)
-	// var t Table1
-	var t map[string]interface{}
-	byteFile, _ := ioutil.ReadAll(jsonFile)
-	json.Unmarshal([]byte(byteFile), &t)
-	// fmt.Println(string(byteFile))
-	// t = t.(map[string]interface{})
-	// fmt.Printf("%T", t)
-	for k, _ := range t {
-		tmp, _ := t[k].(map[string]interface{})
-		fmt.Println(tmp)
-	}
-	// fmt.Println(t.table1)
+	// jsonFile, _ := os.Open("database.json")
+	// defer jsonFile.Close()
+
+	//******typecasting nested json***************
+
+	// var t map[string]interface{}
+	// byteFile, _ := ioutil.ReadAll(jsonFile)
+	// json.Unmarshal(byteFile, &t)
+	// fmt.Println(t["table1"])
+	// a := t["table1"].(map[string]interface{})
+	// c := strings.Split(a["methods"].(string), ",")
+	// fmt.Println(c)
+	// for k := range t {
+	// 	tmp, _ := t[k].(map[string]interface{})
+	// 	fmt.Println(tmp)
+	// }
+	//*********************************************
 
 	//*****************Reading struct elements*****************
 	// a := "localhost:8080/api/v1/key"
@@ -52,4 +51,8 @@ func main() {
 	// 	varValue := e.Field(i).Interface()
 	// 	fmt.Printf("%v %v %v\n", varName, varType, varValue)
 	// }
+
+	a := "/api/key/v1"
+	a = a[1:]
+	fmt.Println(a)
 }

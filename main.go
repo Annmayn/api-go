@@ -115,12 +115,14 @@ func handleVerification(c *gin.Context) {
 	} else if c.Request.Method == "POST" {
 		// c.BindJSON(&u)
 
+		//*****************************current work*******************************
 		// loc, _ := c.GetQuery("user")
+		url := strings.Split(c.Request.URL.Path, "/")[3:] //skip the first whitespace due to trailing '/', "api" and "v1"
 
-		c.JSON(http.StatusOK, gin.H{
-			"user": c.Param("user"),
-			"pass": "b",
-		})
+		// c.JSON(http.StatusOK, gin.H{
+		// 	"user": c.Param("user"),
+		// 	"pass": "b",
+		// })
 	}
 }
 
