@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -76,7 +77,7 @@ func customHandler(c *gin.Context) {
 		if exists == false { //if GET call not allowed
 			notAllowed(c, "GET")
 		} else { //GET call allowed
-			handleGet(c, databaseName)
+			handleGet(c, url[2:])
 		}
 
 	case "POST":
@@ -97,7 +98,7 @@ func customHandler(c *gin.Context) {
 			notAllowed(c, "POST")
 		} else {
 			//todo: add databaseName (string) as argument
-			handleVerification(c)
+			handlePost(c, url[2:])
 		}
 
 	default:
@@ -105,41 +106,85 @@ func customHandler(c *gin.Context) {
 	}
 }
 
-func handleVerification(c *gin.Context) {
-	if c.Request.Method == "OPTIONS" {
-		c.Header("Allow", "POST, GET, OPTIONS")
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Headers", "origin, content-type, accept")
-		c.Header("Content-Type", "application/json")
-		c.Status(http.StatusOK)
-	} else if c.Request.Method == "POST" {
-		// c.BindJSON(&u)
+// func handleVerification(c *gin.Context) {
+// 	if c.Request.Method == "OPTIONS" {
+// 		c.Header("Allow", "POST, GET, OPTIONS")
+// 		c.Header("Access-Control-Allow-Origin", "*")
+// 		c.Header("Access-Control-Allow-Headers", "origin, content-type, accept")
+// 		c.Header("Content-Type", "application/json")
+// 		c.Status(http.StatusOK)
+// 	} else if c.Request.Method == "POST" {
+// 		// c.BindJSON(&u)
 
-		//*****************************current work*******************************
-		// loc, _ := c.GetQuery("user")
-		url := strings.Split(c.Request.URL.Path, "/")[3:] //skip the first whitespace due to trailing '/', "api" and "v1"
+// 		//*****************************current work*******************************
+// 		// loc, _ := c.GetQuery("user")
+// 		// url := strings.Split(c.Request.URL.Path, "/")[3:] //skip the first whitespace due to trailing '/', "api" and "v1"
 
-		// c.JSON(http.StatusOK, gin.H{
-		// 	"user": c.Param("user"),
-		// 	"pass": "b",
-		// })
-	}
+// 		// c.Request.ParseForm()
+// 		// for k, v := range c.Request.PostForm {
+// 		// 	fmt.Println(k, ": ", v)
+// 		// }
+
+// 		b := c.PostFormArray("val")
+// 		fmt.Println(b)
+// 		// fmt.Println(b["a"])
+// 		fmt.Println("Done")
+
+// 		// c.JSON(http.StatusOK, gin.H{
+// 		// 	"user": c.Param("user"),
+// 		// 	"pass": "b",
+// 		// })
+// 	}
+// }
+
+func handlePost(c *gin.Context, dir []string) {
+	// c.BindJSON(&u)
+
+	//*****************************current work*******************************
+	// loc, _ := c.GetQuery("user")
+	// url := strings.Split(c.Request.URL.Path, "/")[3:] //skip the first whitespace due to trailing '/', "api" and "v1"
+
+	// c.Request.ParseForm()
+	// for k, v := range c.Request.PostForm {
+	// 	fmt.Println(k, ": ", v)
+	// }
+
+	file, _ := os.Open(dir[0] + ".json")
+	defer file.Close()
+	content, _ := ioutil.ReadAll(file)
+
+	// b := c.PostForm("val")
+	fmt.Println(string(content))
+	// fmt.Println(b["a"])
+	fmt.Println("Done")
+
+	// c.JSON(http.StatusOK, gin.H{
+	// 	"user": c.Param("user"),
+	// 	"pass": "b",
+	// })
+	c.String(http.StatusOK, "")
 }
 
-func handleGet(c *gin.Context, databaseName string) {
+func handleGet(c *gin.Context, dir []string) {
 	//todo: run get dynamically for every get request by iterating one level at a time
-	message, _ := c.GetQuery("user")
+	//tip: this can be used in the future
+	// message, _ := c.GetQuery("user")
 
-	//read values from table1.json
-	var database map[string]interface{}
-	jsonFile, _ := os.Open("database.json")
-	defer jsonFile.Close()
+	// //read values from table1.json
+	// var database map[string]interface{}
+	// jsonFile, _ := os.Open("database.json")
+	// defer jsonFile.Close()
 
-	byteFile, _ := ioutil.ReadAll(jsonFile)
-	json.Unmarshal([]byte(byteFile), &database)
+	// byteFile, _ := ioutil.ReadAll(jsonFile)
+	// json.Unmarshal([]byte(byteFile), &database)
 
-	c.String(http.StatusOK, c.Request.URL.Path)
-	c.String(http.StatusOK, "Get works!!! "+message+databaseName)
+	// c.String(http.StatusOK, c.Request.URL.Path)
+	// c.String(http.StatusOK, "Get works!!! "+message+databaseName)
+
+	file, _ := os.Open(dir[0] + ".json")
+	content, _ := ioutil.ReadAll(file)
+	// fmt.Println(content)
+	c.String(http.StatusOK, string(content))
 }
 
 func notAllowed(c *gin.Context, method string) {
