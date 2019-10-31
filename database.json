@@ -4,17 +4,41 @@
         "uri": "/",
         "methods": "POST,GET",
         "schema": {
-            "username": true,
-            "password": true
+            "username": {
+                "required":"true",
+                "type":"string"
+            },
+            "password": {
+                "required":"true",
+                "type":"string"
+            },
+            "age": {
+                "required":"false",
+                "type":"int"
+            },
+            "id": {
+                "required":"true",
+                "type":"int"
+            },
+            "phone":{
+                "required":"false",
+                "type":"string"
+            }
         }
     },
     "table2": {
         "url": "localhost:8080/api/v1/table2",
         "uri": "/",
-        "methods": "GET",
+        "methods": "GET,POST",
         "schema": {
-            "username": true,
-            "id": true
+            "username": {
+                "required":"true",
+                "type":"string"
+            },
+            "uid": {
+                "required":"true",
+                "type":"int"
+            }
         }
     }
 }
