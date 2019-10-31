@@ -5,7 +5,7 @@
         "methods": "POST,GET",
         "schema": {
             "username": true,
-            "password": false
+            "password": true
         }
     },
     "table2": {
