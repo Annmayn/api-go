@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -16,12 +17,12 @@ import (
 //Combine tables and add a field "Table string" that determines which table to send to
 //***************
 
-// //Table1 : First table structure
-// type Table1 struct {
-// 	Username string `json:username`
-// 	Password string `json:password`
-// 	// database string
-// }
+//Table1 : First table structure
+type Table1 struct {
+	Username string `json:"username"`
+	Password string `json:"passcode"`
+	// database string
+}
 
 // //Table2 : Second Table structure
 // type Table2 struct {
@@ -58,10 +59,15 @@ func customHandler(c *gin.Context) {
 	case "GET":
 		//split by "/"
 		url := strings.Split(c.Request.URL.Path, "/")[1:] //ignore the first whitespace as it starts with "/"
+
+		fmt.Println(c.Request.URL.Path)
+		fmt.Println(c.Request.URL.Query())
+
 		//table name is the 3rd folder (index 3 because url starts with "/") in request : api/v1/[table_name]
 		databaseName := url[2]
 		//get all the methods allowed in the 'databaseName' database
 		db := database[databaseName].(map[string]interface{})
+
 		methodString := db["methods"].(string)
 		methods := strings.Split(methodString, ",")
 
@@ -84,6 +90,8 @@ func customHandler(c *gin.Context) {
 		url := strings.Split(c.Request.URL.Path, "/")[1:]
 		//table name is the 3rd folder (index 2) in request : api/v1/[table_name]
 		databaseName := url[2]
+
+		table := reflect.ValueOf(database[databaseName])
 		db := database[databaseName].(map[string]interface{})
 		methodString := db["methods"].(string)
 		methods := strings.Split(methodString, ",")
@@ -98,7 +106,8 @@ func customHandler(c *gin.Context) {
 			notAllowed(c, "POST")
 		} else {
 			//todo: add databaseName (string) as argument
-			handlePost(c, url[2:])
+			col := reflect.ValueOf("schema")
+			handlePost(c, url[2:], table.MapIndex(col))
 		}
 
 	default:
@@ -137,10 +146,14 @@ func customHandler(c *gin.Context) {
 // 	}
 // }
 
-func handlePost(c *gin.Context, dir []string) {
-	// c.BindJSON(&u)
+func handlePost(c *gin.Context, dir []string, schema reflect.Value) {
+	fmt.Println("Hello")
+	// var t1 Table1
+	// c.BindJSON(&t1)
+	// fmt.Printf("T1: %+v", t1)
+	//*********************************
 
-	//*****************************current work*******************************
+	//*****************************read post body using post-form*******************************
 	// loc, _ := c.GetQuery("user")
 	// url := strings.Split(c.Request.URL.Path, "/")[3:] //skip the first whitespace due to trailing '/', "api" and "v1"
 
@@ -149,6 +162,46 @@ func handlePost(c *gin.Context, dir []string) {
 	// 	fmt.Println(k, ": ", v)
 	// }
 
+	//todo: kv could be map[reflect.Value]interface{}
+	var kv map[string]interface{}
+	//dynamically create a map to check for valid post request
+	for _, k := range schema.MapKeys() {
+		kv[k.Interface().(string)] = ""
+	}
+	fmt.Println(kv)
+
+	//*************read post body using interface*********************
+	var jsonInterface interface{}
+	c.BindJSON(&jsonInterface)
+	fmt.Println(jsonInterface)
+	reflectJSON := reflect.ValueOf(jsonInterface)
+	switch reflectJSON.Kind() {
+	case reflect.Map:
+		for _, k := range reflectJSON.MapKeys() {
+			// fmt.Println(k, reflectJSON.MapIndex(k))
+			if _, ok := kv[k.Interface().(string)]; ok {
+				kv[k.Interface().(string)] = reflectJSON.MapIndex(k)
+			}
+			// z := reflect.ValueOf("passcode")
+			// fmt.Println(k, v.MapIndex(z))
+		}
+	}
+	// fmt.Printf("%T\n", jsonInterface)
+	//*********************************
+
+	// fo, _ := os.Open("table2.json")
+	// defer fo.Close()
+
+	// w := bufio.NewWriter(fo)
+	// _, _ = w.Write(jsonInterface.([]byte))
+
+	fmt.Println(json.Marshal(kv))
+	j, _ := json.Marshal(kv)
+	// jsonByte := []byte(fmt.Sprintf("%v", jsonInterface.(map[string]interface{})))
+	_ = ioutil.WriteFile(dir[0]+".json", j, 0777)
+
+	//**********************************
+
 	file, _ := os.Open(dir[0] + ".json")
 	defer file.Close()
 	content, _ := ioutil.ReadAll(file)
@@ -156,7 +209,6 @@ func handlePost(c *gin.Context, dir []string) {
 	// b := c.PostForm("val")
 	fmt.Println(string(content))
 	// fmt.Println(b["a"])
-	fmt.Println("Done")
 
 	// c.JSON(http.StatusOK, gin.H{
 	// 	"user": c.Param("user"),
