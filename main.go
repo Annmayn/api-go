@@ -6,48 +6,18 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"reflect"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
-//**************
-//todo:
-//Combine tables and add a field "Table string" that determines which table to send to
-//***************
-
-//Table1 : First table structure
-type Table1 struct {
-	Username string `json:"username"`
-	Password string `json:"passcode"`
-	// database string
-}
-
-// //Table2 : Second Table structure
-// type Table2 struct {
-// 	Username string `json:username`
-// 	ID       int    `json:id`
-// }
-
-//*********useless********
-// var m = map[string]*struct{}{"table1": Table1, "table2": &Table2{}}
-//*****************
-
-// //Table : interface
-// type Table interface{
-// 	getDatabase() string
-// }
-
-// func (t Table) getDatabase() string{
-// 	return t.database
-// }
-
 var router *gin.Engine
 
+//todo: single code to handle all request instead of same code for different requests (using map)
+
 //check if methods are allowed
-//todo: single code to handle all instead of same code for different methods using map
 func customHandler(c *gin.Context) {
+	//read config file from database.json
 	var database map[string]interface{}
 	jsonFile, _ := os.Open("database.json")
 	defer jsonFile.Close()
@@ -91,8 +61,9 @@ func customHandler(c *gin.Context) {
 		//table name is the 3rd folder (index 2) in request : api/v1/[table_name]
 		databaseName := url[2]
 
-		table := reflect.ValueOf(database[databaseName])
 		db := database[databaseName].(map[string]interface{})
+
+		schema := db["schema"].(map[string]interface{})
 		methodString := db["methods"].(string)
 		methods := strings.Split(methodString, ",")
 		exists := false
@@ -105,9 +76,7 @@ func customHandler(c *gin.Context) {
 		if exists == false {
 			notAllowed(c, "POST")
 		} else {
-			//todo: add databaseName (string) as argument
-			col := reflect.ValueOf("schema")
-			handlePost(c, url[2:], table.MapIndex(col))
+			handlePost(c, url[2:], schema)
 		}
 
 	default:
@@ -125,20 +94,18 @@ func customHandler(c *gin.Context) {
 // 	} else if c.Request.Method == "POST" {
 // 		// c.BindJSON(&u)
 
+//#region
 // 		//*****************************current work*******************************
 // 		// loc, _ := c.GetQuery("user")
 // 		// url := strings.Split(c.Request.URL.Path, "/")[3:] //skip the first whitespace due to trailing '/', "api" and "v1"
-
 // 		// c.Request.ParseForm()
 // 		// for k, v := range c.Request.PostForm {
 // 		// 	fmt.Println(k, ": ", v)
 // 		// }
-
 // 		b := c.PostFormArray("val")
 // 		fmt.Println(b)
 // 		// fmt.Println(b["a"])
 // 		fmt.Println("Done")
-
 // 		// c.JSON(http.StatusOK, gin.H{
 // 		// 	"user": c.Param("user"),
 // 		// 	"pass": "b",
@@ -146,79 +113,51 @@ func customHandler(c *gin.Context) {
 // 	}
 // }
 
-func handlePost(c *gin.Context, dir []string, schema reflect.Value) {
-	fmt.Println("Hello")
-	// var t1 Table1
-	// c.BindJSON(&t1)
-	// fmt.Printf("T1: %+v", t1)
-	//*********************************
-
-	//*****************************read post body using post-form*******************************
-	// loc, _ := c.GetQuery("user")
-	// url := strings.Split(c.Request.URL.Path, "/")[3:] //skip the first whitespace due to trailing '/', "api" and "v1"
-
-	// c.Request.ParseForm()
-	// for k, v := range c.Request.PostForm {
-	// 	fmt.Println(k, ": ", v)
-	// }
-
-	//todo: kv could be map[reflect.Value]interface{}
-	var kv map[string]interface{}
-	//dynamically create a map to check for valid post request
-	for _, k := range schema.MapKeys() {
-		kv[k.Interface().(string)] = ""
-	}
-	fmt.Println(kv)
-
-	//*************read post body using interface*********************
-	var jsonInterface interface{}
-	c.BindJSON(&jsonInterface)
-	fmt.Println(jsonInterface)
-	reflectJSON := reflect.ValueOf(jsonInterface)
-	switch reflectJSON.Kind() {
-	case reflect.Map:
-		for _, k := range reflectJSON.MapKeys() {
-			// fmt.Println(k, reflectJSON.MapIndex(k))
-			if _, ok := kv[k.Interface().(string)]; ok {
-				kv[k.Interface().(string)] = reflectJSON.MapIndex(k)
+func validateKV(schema map[string]interface{}, kv map[string]interface{}) []string {
+	var missingData []string
+	//schema -> map[string]map[string]string
+	for k := range schema {
+		if _, ok := kv[k]; !ok { //if doesn't exist
+			//schemaDetail -> map[string]string
+			schemaDetail := schema[k].(map[string]interface{})
+			//check if field was required to be present
+			if schemaDetail["required"].(string) == "true" {
+				missingData = append(missingData, k)
 			}
-			// z := reflect.ValueOf("passcode")
-			// fmt.Println(k, v.MapIndex(z))
 		}
 	}
-	// fmt.Printf("%T\n", jsonInterface)
-	//*********************************
+	return missingData
+}
 
-	// fo, _ := os.Open("table2.json")
-	// defer fo.Close()
+func handlePost(c *gin.Context, dir []string, schema map[string]interface{}) {
+	kv := make(map[string]interface{})
 
-	// w := bufio.NewWriter(fo)
-	// _, _ = w.Write(jsonInterface.([]byte))
+	var jsonInterface map[string]interface{}
+	c.BindJSON(&jsonInterface)
 
-	fmt.Println(json.Marshal(kv))
-	j, _ := json.Marshal(kv)
-	// jsonByte := []byte(fmt.Sprintf("%v", jsonInterface.(map[string]interface{})))
-	_ = ioutil.WriteFile(dir[0]+".json", j, 0777)
+	for k := range jsonInterface {
+		//check if key exists
+		if _, ok := schema[k]; ok { //if exists in schema, update
+			kv[k] = jsonInterface[k]
+		}
+	}
 
-	//**********************************
+	//make sure request body is valid
+	missingData := validateKV(schema, kv)
 
-	file, _ := os.Open(dir[0] + ".json")
-	defer file.Close()
-	content, _ := ioutil.ReadAll(file)
+	if len(missingData) == 0 { //no missing data, all good
+		marshalledJSON, _ := json.Marshal(kv)
 
-	// b := c.PostForm("val")
-	fmt.Println(string(content))
-	// fmt.Println(b["a"])
+		//todo: update file writer to append (currently overwrites)
+		_ = ioutil.WriteFile(dir[0]+".json", marshalledJSON, 0777)
 
-	// c.JSON(http.StatusOK, gin.H{
-	// 	"user": c.Param("user"),
-	// 	"pass": "b",
-	// })
-	c.String(http.StatusOK, "")
+		c.String(http.StatusOK, "")
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"MissingFields": missingData})
+	}
 }
 
 func handleGet(c *gin.Context, dir []string) {
-	//todo: run get dynamically for every get request by iterating one level at a time
 	//tip: this can be used in the future
 	// message, _ := c.GetQuery("user")
 
@@ -241,7 +180,7 @@ func handleGet(c *gin.Context, dir []string) {
 
 func notAllowed(c *gin.Context, method string) {
 	if method == "" {
-		c.String(http.StatusBadRequest, "Not allowed")
+		c.JSON(http.StatusBadRequest, "Not allowed")
 	} else {
 		c.String(http.StatusBadRequest, method+" not allowed")
 	}
@@ -252,9 +191,6 @@ func initializeRoutes(r *gin.RouterGroup) {
 	r.POST("/*any", customHandler)
 	r.OPTIONS("/*any", customHandler)
 	r.GET("/*any", customHandler)
-	// router.POST("/api/v1", handleVerification)
-	// router.OPTIONS("/api/v1", handleVerification)
-	// router.GET("/api/v1", handleGet)
 
 	router.Run(":8080")
 }
